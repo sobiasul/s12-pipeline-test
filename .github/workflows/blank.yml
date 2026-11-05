@@ -1,4 +1,4 @@
-name: DevOps CI/CD Pipeline Demo
+name: Enterprise DevSecOps Pipeline Demo
 
 on:
   push:
@@ -28,86 +28,149 @@ jobs:
     runs-on: ubuntu-latest
     needs: checkout
     steps:
-      - name: Run Unit Tests
-        run: |
+      - run: |
           echo "Running unit tests..."
           sleep 2
-          echo "All unit tests passed."
+          echo "Unit tests passed."
+
+  code-quality:
+    name: Code Quality Scan
+    runs-on: ubuntu-latest
+    needs: checkout
+    steps:
+      - run: |
+          echo "Running code quality checks..."
+          sleep 2
+          echo "Code quality passed."
 
   secret-scan:
-    name: Repository Secret Scan
+    name: Secret Scan
     runs-on: ubuntu-latest
-    needs: unit-test
+    needs: checkout
     steps:
-      - name: Scan Repository
-        run: |
+      - run: |
           echo "Scanning repository for secrets..."
           sleep 2
-          echo "No secrets found."
+          echo "No secrets detected."
+
+  sast:
+    name: SAST Scan
+    runs-on: ubuntu-latest
+    needs: checkout
+    steps:
+      - run: |
+          echo "Performing Static Application Security Testing..."
+          sleep 2
+          echo "SAST completed."
+
+  config-scan:
+    name: Configuration Scan
+    runs-on: ubuntu-latest
+    needs: checkout
+    steps:
+      - run: |
+          echo "Scanning Kubernetes/Terraform configurations..."
+          sleep 2
+          echo "Configuration scan passed."
 
   vault-auth:
     name: Vault Authentication
     runs-on: ubuntu-latest
-    needs: secret-scan
+    needs:
+      - unit-test
+      - code-quality
+      - secret-scan
+      - sast
+      - config-scan
     steps:
-      - name: Authenticate to Vault
-        run: |
+      - run: |
           echo "Authenticating to Vault..."
+          echo "Vault Path: Dev-secret/kv/s10sobia2.wft/app"
           sleep 2
           echo "Vault authentication successful."
+
+      - run: |
+          echo "Retrieving application secrets..."
+          sleep 2
+          echo "Secrets retrieved successfully."
 
   build-image:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: vault-auth
     steps:
-      - name: Build Image
-        run: |
+      - run: |
           echo "Building Docker image..."
           sleep 2
-          echo "Image build completed."
+          echo "Docker image built successfully."
+
+  image-stabilization:
+    name: Wait Before Security Scan
+    runs-on: ubuntu-latest
+    needs: build-image
+    steps:
+      - run: |
+          echo "Waiting 5 minutes before image scanning..."
+          sleep 300
+          echo "Wait completed."
 
   image-scan:
     name: Container Image Scan
     runs-on: ubuntu-latest
-    needs: build-image
+    needs: image-stabilization
     steps:
-      - name: Scan Image
-        run: |
-          echo "Scanning Docker image for vulnerabilities..."
+      - run: |
+          echo "Scanning image for vulnerabilities..."
           sleep 2
           echo "Image scan passed."
 
-  bastion-auth:
-    name: Bastion Host Authentication
+  ecr-auth:
+    name: AWS ECR Authentication
     runs-on: ubuntu-latest
     needs: image-scan
     steps:
-      - name: Connect to Bastion
-        run: |
-          echo "Authenticating to bastion host..."
-          echo "ssh s10sobia@bastion.devopseasylearning.net"
+      - run: |
+          echo "Authenticating to AWS ECR..."
           sleep 2
-          echo "Bastion authentication successful."
+          echo "AWS ECR authentication successful."
 
   push-image:
     name: Push Container Image
     runs-on: ubuntu-latest
-    needs: bastion-auth
+    needs: ecr-auth
     steps:
-      - name: Push Image
-        run: |
-          echo "Pushing Docker image to container registry..."
+      - run: |
+          echo "Pushing image to AWS ECR..."
           sleep 2
           echo "Image pushed successfully."
+
+  image-signing:
+    name: Sign Container Image
+    runs-on: ubuntu-latest
+    needs: push-image
+    steps:
+      - run: |
+          echo "Signing container image..."
+          sleep 2
+          echo "Image signing completed."
+
+  bastion-auth:
+    name: Bastion Authentication
+    runs-on: ubuntu-latest
+    needs: image-signing
+    steps:
+      - run: |
+          echo "Connecting to bastion host..."
+          echo "ssh s10sobia@bastion.devopseasylearning.net"
+          sleep 2
+          echo "Bastion authentication successful."
 
   clone-deployment-repo:
     name: Clone Deployment Repository
     runs-on: ubuntu-latest
-    needs: push-image
+    needs: bastion-auth
     steps:
-      - name: Clone Repo
-        run: |
+      - run: |
           echo "Cloning deployment repository..."
           sleep 2
           echo "Deployment repository cloned."
@@ -117,41 +180,39 @@ jobs:
     runs-on: ubuntu-latest
     needs: clone-deployment-repo
     steps:
-      - name: Substitute Image Tag
-        run: |
-          echo "Updating deployment manifest with new image tag..."
+      - run: |
+          echo "Replacing image tag in deployment manifest..."
           sleep 2
-          echo "Image tag updated."
+          echo "Deployment manifest updated."
 
-  push-deployment-repo:
-    name: Push Changes to Deployment Repository
+  gitops-change:
+    name: GitOps Commit and Push
     runs-on: ubuntu-latest
     needs: update-image-tag
     steps:
-      - name: Push Manifest Changes
-        run: |
-          echo "Pushing updated deployment manifests..."
+      - run: |
+          echo "Committing GitOps changes..."
           sleep 2
-          echo "Changes pushed successfully."
+          echo "Pushing GitOps changes..."
+          sleep 2
+          echo "GitOps repository updated."
 
   argocd-sync:
     name: ArgoCD Deployment
     runs-on: ubuntu-latest
-    needs: push-deployment-repo
+    needs: gitops-change
     steps:
-      - name: ArgoCD Sync
-        run: |
-          echo "Triggering ArgoCD deployment..."
+      - run: |
+          echo "Triggering ArgoCD synchronization..."
           sleep 2
-          echo "ArgoCD synchronization completed."
+          echo "ArgoCD sync completed."
 
   notification:
     name: Send Notification
     runs-on: ubuntu-latest
     needs: argocd-sync
     steps:
-      - name: Notify Team
-        run: |
+      - run: |
           echo "Sending deployment notification..."
           sleep 2
           echo "Notification delivered."
