@@ -1,0 +1,26 @@
+checkout:
+  name: Checkout Source Code
+  runs-on: ubuntu-latest
+
+  steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Display Runner Information
+      run: |
+        echo "Repository: ${{ github.repository }}"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Triggered By: ${{ github.actor }}"
+
+    - name: Show Current Directory
+      run: pwd
+
+    - name: List Repository Contents
+      run: ls -la
+
+    - name: Show Repository File Structure
+      run: find . -type f | sort
+
+    - name: Checkout Validation
+      run: |
+        echo "Repository checkout verified successfully."
