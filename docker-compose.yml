@@ -1,0 +1,22 @@
+services:
+  backend:
+    image: pipeline-demo-backend:local
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      PORT: "3000"
+    expose:
+      - "3000"
+    restart: unless-stopped
+
+  frontend:
+    image: pipeline-demo-frontend:local
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    restart: unless-stopped

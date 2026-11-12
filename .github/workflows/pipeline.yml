@@ -2,90 +2,48 @@ name: Enterprise DevSecOps Pipeline Demo
 
 on:
   push:
-    branches:
-      - main
-
+    branches: [main]
   pull_request:
-    branches:
-      - main
-
+    branches: [main]
   workflow_dispatch:
 
 jobs:
-
   checkout:
     name: Checkout Source Code
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
       - name: Display Runner Information
         run: |
           echo "Repository: ${{ github.repository }}"
           echo "Branch: ${{ github.ref_name }}"
           echo "Triggered By: ${{ github.actor }}"
-
-      - name: Show Current Directory
-        run: pwd
-
-      - name: List Repository Contents
-        run: ls -la
-
       - name: Show Repository Structure
-        run: find . -type f | sort
+        run: find . -type f -not -path './.git/*' | sort
 
   docker-validation:
     name: Docker and Docker Compose Validation
     runs-on: ubuntu-latest
     needs: checkout
-
     steps:
       - name: Check Docker Installation
-        run: |
-          echo "Checking Docker..."
-          docker --version
-
+        run: docker --version
       - name: Check Docker Compose Installation
-        run: |
-          echo "Checking Docker Compose..."
-          docker compose version
-
+        run: docker compose version
       - name: Display Docker Information
-        run: |
-          docker info
+        run: docker info
+      - name: Validate Compose Configuration
+        run: docker compose config --quiet
 
-      - name: Pull Public Image
-        run: |
-          echo "Pulling nginx image..."
-          docker pull nginx:latest
-
-      - name: List Docker Images
-        run: |
-          docker images
-
-      - name: List Running Containers
-        run: |
-          docker ps
-
-      - name: List All Containers
-        run: |
-          docker ps -a
-
-      - name: Display Agent Workspace
-        run: |
-          echo "Current Directory:"
-          pwd
-
-          echo ""
-          echo "Workspace Contents:"
-          ls -la
-
-          echo ""
-          echo "Repository Files:"
-          find . -type f | sort
-
-      - name: Validation Complete
-        run: |
-          echo "Docker validation completed successfully."
+  build-images:
+    name: Build Application Images Locally
+    runs-on: ubuntu-latest
+    needs: docker-validation
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Build Frontend and Backend Images
+        run: docker compose build
+      - name: List Built Images
+        run: docker image ls pipeline-demo-frontend pipeline-demo-backend

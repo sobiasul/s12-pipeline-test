@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pipeline Demo</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main>
+    <h1>Application Pipeline Demo</h1>
+    <p id="status">Checking backend…</p>
+  </main>
+  <script>
+    fetch('/api/health').then(r => r.json()).then(data => {
+      document.querySelector('#status').textContent = `Backend status: ${data.status}`;
+    }).catch(() => {
+      document.querySelector('#status').textContent = 'Backend is unavailable';
+    });
+  </script>
+</body>
+</html>
