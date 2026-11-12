@@ -16,11 +16,11 @@ jobs:
 
   checkout:
     name: Checkout Source Code
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Display Runner Information
         run: |
@@ -39,12 +39,12 @@ jobs:
 
   docker-validation:
     name: Docker and Docker Compose Validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: checkout
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check Docker Installation
         run: |
