@@ -123,6 +123,18 @@ jobs:
 
       - name: List Built Docker Images
         run: |
+          echo "======================================"
+          echo "       SUCCESSFULLY BUILT IMAGES"
+          echo "======================================"
+
+          docker images devsecops-backend:latest
+          docker images devsecops-frontend:latest
+
+          echo ""
+          echo "======================================"
+          echo "       ALL AVAILABLE DOCKER IMAGES"
+          echo "======================================"
+
           docker images
 
       - name: Verify Backend Image
