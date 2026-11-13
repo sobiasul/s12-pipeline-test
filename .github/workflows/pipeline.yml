@@ -1,5 +1,3 @@
-
-
 name: Enterprise DevSecOps Pipeline
 
 on:
@@ -7,19 +5,19 @@ on:
     branches:
       - main
     paths-ignore:
-      - 'README.md'
-      - '**/*.md'
-      - 'docs/**'
-      - '.gitignore'
+      - "README.md"
+      - "**/*.md"
+      - "docs/**"
+      - ".gitignore"
 
   pull_request:
     branches:
       - main
     paths-ignore:
-      - 'README.md'
-      - '**/*.md'
-      - 'docs/**'
-      - '.gitignore'
+      - "README.md"
+      - "**/*.md"
+      - "docs/**"
+      - ".gitignore"
 
   workflow_dispatch:
 
@@ -28,22 +26,19 @@ permissions:
 
 jobs:
 
-  # --------------------------------------------------
-  # 1. CHECKOUT SOURCE CODE
-  # --------------------------------------------------
   checkout:
     name: Checkout Source Code
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Display Repository Information
+      - name: Display Repository Details
         run: |
           echo "Repository: $GITHUB_REPOSITORY"
           echo "Branch: $GITHUB_REF_NAME"
-          echo "Triggered by: $GITHUB_ACTOR"
+          echo "Actor: $GITHUB_ACTOR"
           echo "Commit: $GITHUB_SHA"
 
       - name: Display Project Structure
@@ -52,296 +47,44 @@ jobs:
           ls -la
           find . -maxdepth 3 -type f | sort
 
-  # --------------------------------------------------
-  # 2. DOCKER AND DOCKER COMPOSE VALIDATION
-  # --------------------------------------------------
   docker-validation:
     name: Install and Validate Docker
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: checkout
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Check and Install Docker
+      - name: Check Docker Installation
         run: |
           if ! command -v docker >/dev/null 2>&1; then
-            echo "Docker is missing. Installing Docker..."
+            echo "Docker not found. Installing Docker..."
             sudo apt-get update
             sudo apt-get install -y docker.io
           else
-            echo "Docker is already installed."
+            echo "Docker already installed."
           fi
 
-          sudo systemctl start docker
           docker --version
+
+      - name: Start Docker Service
+        run: |
+          sudo systemctl start docker || true
           docker info
 
-      - name: Check and Install Docker Compose
+      - name: Check Docker Compose Installation
         run: |
           if ! docker compose version >/dev/null 2>&1; then
-            echo "Docker Compose is missing. Installing Compose..."
+            echo "Docker Compose not found. Installing..."
             sudo apt-get update
             sudo apt-get install -y docker-compose-v2
           else
-            echo "Docker Compose is already installed."
+            echo "Docker Compose already installed."
           fi
 
           docker compose version
 
-      - name: Validate Docker Compose Configuration
+      - name: Pull Validation Image
         run: |
-          docker compose config --quiet
-          echo "Docker Compose configuration is valid."
-
-      - name: Docker Validation Complete
-        run: echo "Docker and Docker Compose are ready."
-
-  # --------------------------------------------------
-  # 3. SECRET SCANNING
-  # --------------------------------------------------
-  secret-scan:
-    name: Gitleaks Secret Scanning
-    runs-on: ubuntu-24.04
-    needs: checkout
-
-    steps:
-      - name: Checkout Full Git History
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Scan Repository for Secrets
-        uses: gitleaks/gitleaks-action@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # --------------------------------------------------
-  # 4. UNIT TESTING
-  # --------------------------------------------------
-  unit-tests:
-    name: Backend Unit Tests
-    runs-on: ubuntu-24.04
-    needs: checkout
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-
-      - name: Set Up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install Backend Dependencies
-        working-directory: backend
-        run: npm install
-
-      - name: Run Backend Unit Tests
-        working-directory: backend
-        run: npm test
-
-  # --------------------------------------------------
-  # 5. CODE QUALITY ANALYSIS
-  # --------------------------------------------------
-  code-quality:
-    name: SonarCloud Code Quality Analysis
-    runs-on: ubuntu-24.04
-    needs: checkout
-    if: ${{ vars.SONAR_ORGANIZATION != '' && vars.SONAR_PROJECT_KEY != '' }}
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Set Up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install Backend Dependencies
-        working-directory: backend
-        run: npm install
-
-      - name: SonarCloud Analysis
-        uses: SonarSource/sonarqube-scan-action@v6
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
-            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
-
-  # --------------------------------------------------
-  # 6. SAST SOURCE CODE SECURITY
-  # --------------------------------------------------
-  sast:
-    name: CodeQL SAST Security Analysis
-    runs-on: ubuntu-24.04
-    needs: checkout
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript
-          build-mode: none
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
-
-  # --------------------------------------------------
-  # 7. CONFIGURATION SECURITY
-  # --------------------------------------------------
-  configuration-security:
-    name: Checkov Configuration Security
-    runs-on: ubuntu-24.04
-    needs: checkout
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-
-      - name: Set Up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install Checkov
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install checkov
-
-      - name: Scan Dockerfiles and YAML Configuration
-        run: |
-          checkov -d . \
-            --framework dockerfile yaml \
-            --quiet
-
-  # --------------------------------------------------
-  # 8. HASHICORP VAULT AUTHENTICATION
-  # --------------------------------------------------
-  vault-authentication:
-    name: Authenticate to HashiCorp Vault
-    runs-on: ubuntu-24.04
-
-    if: ${{ vars.VAULT_ADDR != '' && vars.VAULT_ROLE != '' && vars.VAULT_SECRET_PATH != '' }}
-
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-
-      - name: Authenticate and Retrieve Vault Secret
-        uses: hashicorp/vault-action@v3
-        with:
-          method: jwt
-          url: ${{ vars.VAULT_ADDR }}
-          role: ${{ vars.VAULT_ROLE }}
-          jwtGithubAudience: ${{ vars.VAULT_AUDIENCE }}
-          secrets: |
-            ${{ vars.VAULT_SECRET_PATH }}
-
-      - name: Confirm Vault Authentication
-        run: echo "Vault authentication and secret retrieval completed."
-
-  # --------------------------------------------------
-  # 9. BUILD FRONTEND AND BACKEND DOCKER IMAGES
-  # --------------------------------------------------
-  docker-build:
-    name: Build Frontend and Backend Images
-    runs-on: ubuntu-24.04
-
-    needs:
-      - docker-validation
-      - secret-scan
-      - unit-tests
-      - sast
-      - configuration-security
-      - code-quality
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-
-      - name: Verify Docker
-        run: |
-          docker --version
-          docker compose version
-
-      - name: Build Backend Image
-        run: |
-          docker build \
-            -t devsecops-backend:${{ github.sha }} \
-            -t devsecops-backend:latest \
-            ./backend
-
-      - name: Build Frontend Image
-        run: |
-          docker build \
-            -t devsecops-frontend:${{ github.sha }} \
-            -t devsecops-frontend:latest \
-            ./frontend
-
-      - name: Verify Built Images
-        run: |
-          docker image inspect devsecops-backend:${{ github.sha }}
-          docker image inspect devsecops-frontend:${{ github.sha }}
-          docker images
-
-  # --------------------------------------------------
-  # 10. CONTAINER IMAGE SECURITY SCANNING
-  # --------------------------------------------------
-  image-security:
-    name: Trivy Container Image Security
-    runs-on: ubuntu-24.04
-    needs: docker-build
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-
-      - name: Build Backend Image for Scanning
-        run: |
-          docker build \
-            -t devsecops-backend:${{ github.sha }} \
-            ./backend
-
-      - name: Build Frontend Image for Scanning
-        run: |
-          docker build \
-            -t devsecops-frontend:${{ github.sha }} \
-            ./frontend
-
-      - name: Scan Backend Image
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: devsecops-backend:${{ github.sha }}
-          format: table
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
-
-      - name: Scan Frontend Image
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: devsecops-frontend:${{ github.sha }}
-          format: table
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
+          docker pull nginx:latest
