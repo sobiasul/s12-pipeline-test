@@ -99,3 +99,40 @@ jobs:
       - name: Validation Complete
         run: |
           echo "Docker validation completed successfully."
+
+  docker-build:
+    name: Build Frontend and Backend Images
+    runs-on: ubuntu-24.04
+    needs: docker-validation
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Build Backend Docker Image
+        run: |
+          docker build \
+            -t devsecops-backend:latest \
+            ./backend
+
+      - name: Build Frontend Docker Image
+        run: |
+          docker build \
+            -t devsecops-frontend:latest \
+            ./frontend
+
+      - name: List Built Docker Images
+        run: |
+          docker images
+
+      - name: Verify Backend Image
+        run: |
+          docker image inspect devsecops-backend:latest
+
+      - name: Verify Frontend Image
+        run: |
+          docker image inspect devsecops-frontend:latest
+
+      - name: Docker Build Complete
+        run: |
+          echo "Both frontend and backend Docker images were built successfully."
