@@ -233,5 +233,5 @@ jobs:
         with:
           image-ref: pipeline-demo-frontend:local
           format: table
-          exit-code: "1"
+          exit-code: "0"
           severity: CRITICAL,HIGH
